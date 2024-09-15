@@ -1,4 +1,5 @@
-import axios from 'axios';
+// import axios from 'axios';
+import axios from "./axiosConfig";
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -61,6 +62,30 @@ export const logoutUser = async () => {
   }
 };
 
+// Function to refresh token (if needed manually)
+export const refreshToken = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/token/refresh/`, {}, {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    throw error;
+  }
+};
 
 
 
+// Function to save creative information
+export const saveCreativeInfo = async (creativeInfo) => {
+  try {
+    const response = await axios.post('/api/profile/save/', { creative_info: creativeInfo }, {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error saving creative information:', error);
+    throw error;
+  }
+};

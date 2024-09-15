@@ -19,4 +19,9 @@ class UserProfile(models.Model):
 
 
 
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    creative_info = models.TextField()  # Add more fields as needed
 
+    def __str__(self):
+        return f"{self.user.username}'s Profile"

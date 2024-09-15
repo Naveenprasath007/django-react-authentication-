@@ -9,7 +9,44 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import RegisterSerializer
+from .models import Profile
+from .serializers import RegisterSerializer,ProfileSerializer
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework.decorators import api_view
+
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            return Response({"detail": "Refresh token not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data={'refresh': refresh_token})
+        serializer.is_valid(raise_exception=True)
+
+        # Create a response object
+        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        
+        # Set refresh token cookie (if required, for rotating refresh tokens)
+        if 'refresh' in serializer.validated_data:
+            # Set the access token in an HTTP-only cookie
+            response.set_cookie(
+                key='access_token',
+                value=serializer.validated_data['access'],
+                httponly=True,  # Important: HTTP-only flag
+                secure=True,   # Use True in production with HTTPS
+                samesite='Lax',  # or 'Strict'
+                # max_age=60 * 60 * 24 * 1  # 1-day expiration
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=serializer.validated_data['refresh'],
+                httponly=True,
+                secure=True,  # Set secure=True in production
+                samesite='Lax',
+                max_age=60 * 60 * 24 * 1  # 1-day expiration
+            )
+        
+        return response
 
 
 class RegisterView(APIView):
@@ -77,3 +114,17 @@ class LogoutView(APIView):
 
 
 
+@api_view(['POST'])
+def save_creative_info(request):
+    user = request.user
+    if not user.is_authenticated:
+        return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    data = request.data
+    profile, created = Profile.objects.get_or_create(user=user)
+
+    serializer = ProfileSerializer(profile, data=data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
